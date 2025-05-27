@@ -10,8 +10,7 @@ import {
   where,
   onSnapshot,
   getDocs,
-  orderBy,
-  limit,
+
 } from 'firebase/firestore';
 
 import {
@@ -20,7 +19,6 @@ import {
   Box,
   Paper,
   Divider,
-  IconButton,
   useTheme,
   CircularProgress,
   Chip,
@@ -34,7 +32,6 @@ import {
   ExitToApp as ExitToAppIcon,
   Group as GroupIcon,
   RocketLaunch as RocketLaunchIcon,
-  ArrowUpward as ArrowUpwardIcon,
   Add as AddIcon,
   Favorite as FavoriteIcon,
   Lock as LockIcon,
@@ -50,7 +47,10 @@ interface Group {
   id: string;
   name: string;
   description?: string;
-  membersCount?: number;
+  members?: string[]; // Liste des IDs des membres
+  membersCount?: number; // Nombre de membres (peut être calculé)
+  messagesTotal?: number; // Total des messages
+  membresTotal?: number;  // Total des membres (alternative à membersCount)
   lastActivity?: Date;
 }
 
@@ -61,7 +61,7 @@ const UserDash: React.FC = () => {
 
   const [joinedGroups, setJoinedGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [, setShowScrollTop] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -85,61 +85,61 @@ const UserDash: React.FC = () => {
       return;
     }
 
-    const fetchUserGroups = async () => {
-      try {
-        const q = query(
-          collection(db, 'userGroups'),
-          where('userId', '==', currentUser.uid)
-        );
+const fetchUserGroups = async () => {
+  try {
+    const q = query(
+      collection(db, 'userGroups'),
+      where('userId', '==', currentUser.uid)
+    );
 
-        const unsubscribe = onSnapshot(q, async (snapshot) => {
-          const groupIds = snapshot.docs.map(doc => doc.data().groupId);
-          
-          if (groupIds.length === 0) {
-            setJoinedGroups([]);
-            setLoading(false);
-            return;
-          }
-
-          const groupsQuery = query(
-            collection(db, 'groups'),
-            where('__name__', 'in', groupIds)
-          );
-
-          const groupsSnapshot = await getDocs(groupsQuery);
-          const groupsData: Group[] = [];
-
-          for (const doc of groupsSnapshot.docs) {
-            const messagesQuery = query(
-              collection(db, 'groups', doc.id, 'messages'),
-              orderBy('createdAt', 'desc'),
-              limit(1)
-            );
-            
-            const messagesSnapshot = await getDocs(messagesQuery);
-            const lastMessage = messagesSnapshot.docs[0]?.data();
-
-            groupsData.push({
-              id: doc.id,
-              name: doc.data().name,
-              description: doc.data().description,
-              membersCount: doc.data().members?.length || 0,
-              lastActivity: lastMessage?.createdAt?.toDate() || doc.data().createdAt?.toDate()
-            });
-          }
-
-          setJoinedGroups(groupsData.sort((a, b) => 
-            (b.lastActivity?.getTime() || 0) - (a.lastActivity?.getTime() || 0)
-          ));
-          setLoading(false);
-        });
-
-        return () => unsubscribe();
-      } catch (error) {
-        console.error("Error fetching user groups:", error);
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const groupIds = snapshot.docs.map(doc => doc.data().groupId);
+      
+      if (groupIds.length === 0) {
+        setJoinedGroups([]);
         setLoading(false);
+        return;
       }
-    };
+
+      const groupsQuery = query(
+        collection(db, 'groups'),
+        where('__name__', 'in', groupIds)
+      );
+
+      const groupsSnapshot = await getDocs(groupsQuery);
+      const groupsData: Group[] = [];
+
+      for (const doc of groupsSnapshot.docs) {
+        // Récupérer le nombre de messages
+        const messagesQuery = query(
+          collection(db, 'groups', doc.id, 'messages')
+        );
+        const messagesSnapshot = await getDocs(messagesQuery);
+        
+        groupsData.push({
+          id: doc.id,
+          name: doc.data().name,
+          description: doc.data().description,
+          members: doc.data().members || [],
+          membersCount: doc.data().members?.length || 0,
+          messagesTotal: doc.data().messagesTotal || messagesSnapshot.size, // Utilise le champ ou compte les messages
+          membresTotal: doc.data().membresTotal || doc.data().members?.length || 0,
+          lastActivity: doc.data().lastActivity?.toDate() || doc.data().createdAt?.toDate()
+        });
+      }
+
+      setJoinedGroups(groupsData.sort((a, b) => 
+        (b.lastActivity?.getTime() || 0) - (a.lastActivity?.getTime() || 0)
+      ));
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  } catch (error) {
+    console.error("Error fetching user groups:", error);
+    setLoading(false);
+  }
+};
 
     fetchUserGroups();
   }, [currentUser]);
@@ -361,13 +361,14 @@ const UserDash: React.FC = () => {
                   <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.primary.dark }}>
                     {group.name}
                   </Typography>
-                  <Chip
-                    label={`${group.membersCount} membres`}
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                    sx={{ fontWeight: 600 }}
-                  />
+<Chip
+  label={`${group.membresTotal || group.membersCount || 0} membres • ${group.messagesTotal || 0} messages`}
+  size="small"
+  color="primary"
+  variant="outlined"
+  sx={{ fontWeight: 600 }}
+/>
+                  
                 </Box>
 
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 2, flexGrow: 1 }}>

@@ -13,7 +13,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Divider,
   Tabs,
   Tab,
   Chip,
@@ -30,6 +29,8 @@ import {
   deleteDoc,
   query,
   orderBy,
+  getDoc,
+  increment,
 } from "firebase/firestore";
 import { db, auth } from "../services/firebase";
 import { useNavigate } from "react-router-dom";
@@ -60,7 +61,8 @@ interface Group {
   description: string;
   createdAt: Date;
   members: string[];
-  messagesCount?: number;
+  messagesTotal?: number; // Nouveau champ
+  membresTotal?: number; // Nouveau champ
 }
 
 interface Message {
@@ -206,7 +208,7 @@ const GroupMessages: React.FC<GroupMessagesProps> = ({
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const analyzer = new FrenchSentimentAnalyzer();
+  const analyzer = React.useMemo(() => new FrenchSentimentAnalyzer(), []);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -366,12 +368,14 @@ const AdminPage: React.FC = () => {
     negativeMessages: 0,
     neutralMessages: 0,
   });
+  // Move fetching users count inside fetchData
   const [activeTab, setActiveTab] = useState("dashboard");
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success" as SnackbarSeverity,
   });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const analyzer = new FrenchSentimentAnalyzer();
 
   const handleLogout = async () => {
@@ -403,6 +407,10 @@ const AdminPage: React.FC = () => {
           createdAt: doc.data().createdAt?.toDate() || new Date(),
         })) as Group[];
         setGroups(groupsData);
+
+        // Fetch users count
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        const totalUsersCount = usersSnapshot.size;
 
         // Calculate stats
         const today = new Date();
@@ -473,7 +481,7 @@ const AdminPage: React.FC = () => {
         // Set statistics and recent messages
         setStats({
           totalGroups: groupsData.length,
-          totalUsers: 0, // You may want to fetch and set this properly
+          totalUsers: totalUsersCount, // Now fetched properly
           activeUsers: 0, // You may want to fetch and set this properly
           messagesToday: todayMessagesCount,
           totalMessages: messagesCount,
@@ -492,9 +500,8 @@ const AdminPage: React.FC = () => {
         showSnackbar("Erreur lors du chargement des données", "error");
       }
     };
-
     fetchData();
-  }, []); // <-- This closes the useEffect properly
+  }, [analyzer]); // <-- This closes the useEffect properly
 
   const handleAddGroup = async () => {
     if (groupName.trim()) {
@@ -504,10 +511,11 @@ const AdminPage: React.FC = () => {
           description: groupDescription || "Nouveau groupe",
           createdAt: new Date(),
           members: [],
+          messagesTotal: 0, // Initialisé à 0
+          membresTotal: 0, // Initialisé à 0
         };
 
-        const docRef = await addDoc(collection(db, "groups"), newGroup);
-        setGroups([...groups, { ...newGroup, id: docRef.id }]);
+        await addDoc(collection(db, "groups"), newGroup);
         setGroupName("");
         setGroupDescription("");
         showSnackbar("Groupe créé avec succès", "success");
@@ -579,6 +587,80 @@ const AdminPage: React.FC = () => {
     setSelectedFilter(filter);
   };
 
+  const updateGroupTotals = async (groupId: string) => {
+    try {
+      // Compter les messages
+      const messagesQuery = query(
+        collection(db, "groups", groupId, "messages")
+      );
+      const messagesSnapshot = await getDocs(messagesQuery);
+      const messagesCount = messagesSnapshot.size;
+
+      // Compter les membres (on utilise la longueur du tableau members)
+      const groupDoc = await getDoc(doc(db, "groups", groupId));
+      const membersCount = groupDoc.data()?.members?.length || 0;
+
+      // Mettre à jour les totaux
+      await updateDoc(doc(db, "groups", groupId), {
+        messagesTotal: messagesCount,
+        membresTotal: membersCount,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour des totaux:", error);
+    }
+  };
+  const updateGroupMembers = async (
+    groupId: string,
+    userId: string,
+    isJoining: boolean
+  ) => {
+    try {
+      const groupRef = doc(db, "groups", groupId);
+      const group = groups.find((g) => g.id === groupId);
+
+      if (!group) return;
+
+      let updatedMembers = [...(group.members || [])];
+
+      if (isJoining) {
+        if (!updatedMembers.includes(userId)) {
+          updatedMembers.push(userId);
+        }
+      } else {
+        updatedMembers = updatedMembers.filter((id) => id !== userId);
+      }
+
+      await updateDoc(groupRef, {
+        members: updatedMembers,
+        membresTotal: updatedMembers.length, // Mise à jour directe
+      });
+
+      showSnackbar(`Membres mis à jour avec succès`, "success");
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour des membres:", error);
+      showSnackbar("Erreur lors de la mise à jour des membres", "error");
+    }
+  };
+  const handleSendMessage = async (groupId: string, messageText: string) => {
+    try {
+      // Ajouter le message
+      await addDoc(collection(db, "groups", groupId, "messages"), {
+        text: messageText,
+        senderId: auth.currentUser?.uid,
+        senderUsername: auth.currentUser?.displayName || "Anonyme",
+        createdAt: new Date(),
+        sentiment: analyzer.analyze(messageText),
+      });
+
+      // Mettre à jour le compteur de messages
+      const groupRef = doc(db, "groups", groupId);
+      await updateDoc(groupRef, {
+        messagesTotal: increment(1), // Utilisation de increment pour Firestore
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'envoi du message:", error);
+    }
+  };
   const getSentimentStats = (messages: Message[]): SentimentStats => {
     const stats: SentimentStats = {
       positif: 0,
@@ -698,7 +780,7 @@ const AdminPage: React.FC = () => {
                 </Typography>
                 <Typography className="stat-label">Messages total</Typography>
               </Paper>
-              <Paper className="stat-item" sx={{ bgcolor: "success.light" }}>
+              <Paper className="stat-item positif" sx={{ bgcolor: "#e8f5e9" }}>
                 <Typography className="stat-value">
                   {stats.positiveMessages}
                 </Typography>
@@ -706,7 +788,7 @@ const AdminPage: React.FC = () => {
                   Messages positifs
                 </Typography>
               </Paper>
-              <Paper className="stat-item" sx={{ bgcolor: "error.light" }}>
+              <Paper className="stat-item negatif" sx={{ bgcolor: "#ffebee" }}>
                 <Typography className="stat-value">
                   {stats.negativeMessages}
                 </Typography>
@@ -1351,13 +1433,16 @@ const AdminPage: React.FC = () => {
                           {group.name}
                         </Typography>
                         <Chip
-                          label={`${group.members?.length || 0} membres`}
+                          label={`${group.membresTotal || 0} membres / ${
+                            group.messagesTotal || 0
+                          } messages`}
                           size="small"
                           sx={{
                             height: "20px",
                             fontSize: "0.7rem",
                             bgcolor: "secondary.light",
                             color: "secondary.contrastText",
+                            marginLeft: "auto",
                           }}
                         />
                       </Box>
