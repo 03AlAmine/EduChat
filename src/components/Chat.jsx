@@ -12,7 +12,7 @@ import {
   getDoc,
   increment,
   writeBatch,
-  
+
 } from 'firebase/firestore';
 import styles from './Chat.module.css';
 import { Avatar, Button, TextField, IconButton, CircularProgress } from '@mui/material';
@@ -210,41 +210,41 @@ const Chat = ({ groupId }) => {
     return 'neutre';
   };
 
-// Dans le composant Chat, modifiez la fonction handleSendMessage
-const handleSendMessage = async () => {
-  if (!newMessage.trim() || !currentUserData) return;
+  // Dans le composant Chat, modifiez la fonction handleSendMessage
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !currentUserData) return;
 
-  const messageToSend = newMessage;
-  setNewMessage('');
+    const messageToSend = newMessage;
+    setNewMessage('');
 
-  const sentiment = analyzeSentiment(messageToSend);
+    const sentiment = analyzeSentiment(messageToSend);
 
-  try {
-    // Utilisez une transaction batch pour les opérations atomiques
-    const batch = writeBatch(db);
-    
-    // Ajouter le message
-    const messageRef = doc(collection(db, 'groups', groupId, 'messages'));
-    batch.set(messageRef, {
-      text: messageToSend,
-      senderId: auth.currentUser?.uid,
-      senderUsername: currentUserData.username,
-      createdAt: Timestamp.now(),
-      sentimentType: sentiment,
-    });
+    try {
+      // Utilisez une transaction batch pour les opérations atomiques
+      const batch = writeBatch(db);
 
-    // Mettre à jour le compteur de messages
-    const groupRef = doc(db, 'groups', groupId);
-    batch.update(groupRef, {
-      messagesTotal: increment(1)
-    });
+      // Ajouter le message
+      const messageRef = doc(collection(db, 'groups', groupId, 'messages'));
+      batch.set(messageRef, {
+        text: messageToSend,
+        senderId: auth.currentUser?.uid,
+        senderUsername: currentUserData.username,
+        createdAt: Timestamp.now(),
+        sentimentType: sentiment,
+      });
 
-    await batch.commit();
-  } catch (error) {
-    console.error("Erreur lors de l'envoi du message :", error);
-    setNewMessage(messageToSend);
-  }
-};
+      // Mettre à jour le compteur de messages
+      const groupRef = doc(db, 'groups', groupId);
+      batch.update(groupRef, {
+        messagesTotal: increment(1)
+      });
+
+      await batch.commit();
+    } catch (error) {
+      console.error("Erreur lors de l'envoi du message :", error);
+      setNewMessage(messageToSend);
+    }
+  };
   const handleGoBack = () => {
     navigate('/');
   };
@@ -360,7 +360,7 @@ const handleSendMessage = async () => {
                         <span className={styles.senderName}>{displayUsername}</span>
                       )}
                       <div className={styles.messageBubble}>
-                        {msg.text} <span title={`Sentiment: ${msg.sentimentType}`}>{sentimentEmoji}</span>
+                        {msg.text} {/*<span title={`Sentiment: ${msg.sentimentType}`}>{sentimentEmoji}</span>*/}
                         <div className={styles.messageTime}>
                           {msg.createdAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || ''}
                         </div>

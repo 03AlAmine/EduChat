@@ -1003,7 +1003,7 @@ const AdminPage: React.FC = () => {
                 Répartition des sentiments
               </Typography>
               <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                <Paper sx={{ p: 2, flex: 1, bgcolor: "success.light" }}>
+                <Paper sx={{ p: 2, flex: 1, bgcolor: "#e8f5e9" }}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <PositiveIcon />
                     <Typography variant="h6">
@@ -1012,7 +1012,7 @@ const AdminPage: React.FC = () => {
                   </Box>
                   <Typography variant="body2">Messages positifs</Typography>
                 </Paper>
-                <Paper sx={{ p: 2, flex: 1, bgcolor: "error.light" }}>
+                <Paper sx={{ p: 2, flex: 1, bgcolor: "#ffebee" }}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <NegativeIcon />
                     <Typography variant="h6">
@@ -1112,8 +1112,7 @@ const AdminPage: React.FC = () => {
                 sx={{
                   fontSize: 32,
                   color: "error.main",
-                  bgcolor: "rgba(244, 67, 54, 0.1)",
-                  p: 1,
+                  bgcolor: "#ffebee",
                   borderRadius: "50%",
                 }}
               />

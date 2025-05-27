@@ -11,7 +11,15 @@ interface UserData {
   name: string;
   email?: string;
   role?: string;
+  avatarUrl?: string;       // 🔧 Ajoute ceci
+  description?: string;     // 🔧 Et ceci aussi
+  phone?: string;
+  location?: string;
+  birthdate?: string;
+  linkedin?: string;
+  github?: string;
 }
+
 
 interface AuthContextType {
   currentUser: AppUser | null;

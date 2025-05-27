@@ -13,6 +13,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 import CreateGroupPage from "./pages/groupe/CreateGroup"; // Importer la page de création de groupe
 import UserAdminControl from "./pages/user/UserAdminControl";
+import Profile from "./pages/user/UserProfile";
 
 function App() {
   return (
@@ -30,6 +31,15 @@ function App() {
 
           {/* Page de connexion */}
           <Route path="/login" element={<LoginPage />} />
+
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <Profile />
+              </PrivateRoute>
+            }
+          />
 
           {/* Route admin protégée */}
           <Route
