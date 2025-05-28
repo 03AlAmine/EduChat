@@ -1,3 +1,5 @@
+
+
 .App {
   text-align: center;
 }
@@ -171,13 +173,6 @@
 
 
 
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  overflow: hidden;
-}
 
 .login-wrapper {
   display: flex;
@@ -185,6 +180,7 @@
   justify-content: center;
   min-height: 100vh;
     background: linear-gradient(to left, #067415, #ffffff);
+
   gap: 3rem;
   max-width: 65%;
   width: 100%;

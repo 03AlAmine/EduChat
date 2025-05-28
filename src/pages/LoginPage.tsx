@@ -11,6 +11,7 @@ import {
   Paper,
   Alert,
   Link,
+  Container,
 } from "@mui/material";
 import "../App.css";
 
@@ -64,9 +65,8 @@ const LoginPage: React.FC = () => {
 
   return (
     
-    <div className="login-container">
       
-      <div className="login-wrapper">
+      <Container className="login-wrapper">
 
 
 
@@ -197,8 +197,7 @@ const LoginPage: React.FC = () => {
             </div>
           </Paper>
         </div>
-      </div>
-    </div>
+      </Container>
   );
 };
 
