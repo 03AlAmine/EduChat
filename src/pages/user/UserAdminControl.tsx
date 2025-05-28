@@ -146,6 +146,44 @@ const UserAdminControl: React.FC = () => {
       }
     }
   };
+  const removeUserFromGroup = async (userId: string, groupId: string) => {
+    if (
+      window.confirm(
+        "Êtes-vous sûr de vouloir retirer cet utilisateur du groupe?"
+      )
+    ) {
+      try {
+        // Trouver le document userGroup correspondant
+        const userGroupsQuery = query(
+          collection(db, "userGroups"),
+          where("userId", "==", userId),
+          where("groupId", "==", groupId)
+        );
+
+        const userGroupsSnapshot = await getDocs(userGroupsQuery);
+
+        // Supprimer tous les documents trouvés (normalement il ne devrait y en avoir qu'un)
+        const deletePromises = userGroupsSnapshot.docs.map((doc) =>
+          deleteDoc(doc.ref)
+        );
+        await Promise.all(deletePromises);
+
+        // Mettre à jour l'état local
+        setSelectedUser((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            groups: prev.groups.filter((group) => group.id !== groupId),
+          };
+        });
+
+        // Rafraîchir la liste des utilisateurs
+        fetchUsers();
+      } catch (error) {
+        console.error("Erreur lors du retrait du groupe:", error);
+      }
+    }
+  };
 
   const handleViewDetails = (user: User) => {
     setSelectedUser(user);
@@ -577,23 +615,57 @@ const UserAdminControl: React.FC = () => {
                       }}
                     >
                       {selectedUser.groups.map((group) => (
-                        <Chip
+                        <Box
                           key={group.id}
-                          label={group.name}
-                          color="primary"
-                          variant="outlined"
-                          onClick={() => {
-                            navigate(`/admin/group/${group.id}`);
-                            setOpenDialog(false);
-                          }}
                           sx={{
-                            cursor: "pointer",
-                            borderRadius: 1,
-                            "&:hover": {
-                              backgroundColor: theme.palette.primary.light,
+                            position: "relative",
+                            "&:hover .group-actions": {
+                              opacity: 1,
                             },
                           }}
-                        />
+                        >
+                          <Chip
+                            label={group.name}
+                            color="primary"
+                            variant="outlined"
+                            onClick={() => {
+                              navigate(`/admin/group/${group.id}`);
+                              setOpenDialog(false);
+                            }}
+                            sx={{
+                              cursor: "pointer",
+                              borderRadius: 1,
+                              pr: 4, // Espace pour le bouton
+                              "&:hover": {
+                                backgroundColor: theme.palette.primary.light,
+                              },
+                            }}
+                          />
+                          <Tooltip title="Retirer du groupe" arrow>
+                            <IconButton
+                              size="small"
+                              className="group-actions"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeUserFromGroup(selectedUser.id, group.id);
+                              }}
+                              sx={{
+                                position: "absolute",
+                                right: 4,
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                opacity: 0,
+                                transition: "opacity 0.2s",
+                                color: theme.palette.error.main,
+                                "&:hover": {
+                                  backgroundColor: theme.palette.error.light,
+                                },
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
                       ))}
                     </Box>
                   ) : (
