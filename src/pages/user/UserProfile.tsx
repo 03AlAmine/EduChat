@@ -1,29 +1,34 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../components/auth/AuthContext';
-import { storage, db } from '../../services/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc } from 'firebase/firestore';
-import './UserProfile.css';
+import React, { useState } from "react";
+import { useAuth } from "../../components/auth/AuthContext";
+import { storage, db } from "../../services/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, updateDoc } from "firebase/firestore";
+import "./UserProfile.css";
 
 const UserProfile = () => {
   const { currentUser, userData } = useAuth();
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: userData?.name || '',
-    email: currentUser?.email || '',
-    description: userData?.description || '',
-    phone: userData?.phone || '',
-    location: userData?.location || '',
-    birthdate: userData?.birthdate || '',
-    linkedin: userData?.linkedin || '',
-    github: userData?.github || '',
-    avatarUrl: userData?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop',
+    name: userData?.name || "",
+    email: currentUser?.email || "",
+    description: userData?.description || "",
+    username: userData?.username || "",
+    phone: userData?.phone || "",
+    location: userData?.location || "",
+    birthdate: userData?.birthdate || "",
+    linkedin: userData?.linkedin || "",
+    github: userData?.github || "",
+    avatarUrl:
+      userData?.avatarUrl ||
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop",
   });
   const [uploading, setUploading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,9 +40,9 @@ const UserProfile = () => {
     try {
       await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(storageRef);
-      setFormData(prev => ({ ...prev, avatarUrl: downloadURL }));
+      setFormData((prev) => ({ ...prev, avatarUrl: downloadURL }));
     } catch (error) {
-      console.error('Error uploading avatar:', error);
+      console.error("Error uploading avatar:", error);
     }
 
     setUploading(false);
@@ -46,7 +51,7 @@ const UserProfile = () => {
   const handleSave = async () => {
     if (!currentUser) return;
     try {
-      await updateDoc(doc(db, 'users', currentUser.uid), formData);
+      await updateDoc(doc(db, "users", currentUser.uid), formData);
       setEditing(false);
     } catch (error) {
       console.error("Update error:", error);
@@ -58,10 +63,10 @@ const UserProfile = () => {
       <div className="profile-header">
         <div className="avatar-hover-container">
           <div className="avatar-glow">
-            <img 
-              src={formData.avatarUrl} 
-              alt="Profile" 
-              className={`profile-avatar ${editing ? 'editable' : ''}`}
+            <img
+              src={formData.avatarUrl}
+              alt="Profile"
+              className={`profile-avatar ${editing ? "editable" : ""}`}
             />
           </div>
           {editing && (
@@ -73,7 +78,7 @@ const UserProfile = () => {
                   onChange={handleAvatarUpload}
                 />
                 <span className="upload-button">
-                  {uploading ? 'Uploading...' : 'Change Photo'}
+                  {uploading ? "Uploading..." : "Change Photo"}
                 </span>
               </label>
             </div>
@@ -82,47 +87,56 @@ const UserProfile = () => {
 
         <div className="profile-titles">
           <h1 className="profile-name">{formData.name}</h1>
-          <p className="profile-title">{formData.description || 'No description yet'}</p>
+          <p className="profile-title">
+            {formData.description || "No description yet"}
+          </p>
         </div>
       </div>
 
       <div className="profile-grid">
         <ProfileSection title="Personal Information" icon="👤">
-          <ProfileField 
-            label="Full Name" 
+          <ProfileField
+            label="Full Name"
             name="name"
             value={formData.name}
             editing={editing}
             onChange={handleChange}
           />
-          <ProfileField 
-            label="Email" 
+          <ProfileField
+            label="Email"
             name="email"
             value={formData.email}
             editing={editing}
             onChange={handleChange}
             type="email"
           />
-          <ProfileField 
-            label="Phone" 
+          <ProfileField
+            label="Phone"
             name="phone"
             value={formData.phone}
             editing={editing}
             onChange={handleChange}
             type="tel"
           />
+          <ProfileField
+            label="Pseudo"
+            name="username"
+            value={formData.username}
+            editing={editing}
+            onChange={handleChange}
+          />
         </ProfileSection>
 
         <ProfileSection title="Location Details" icon="📍">
-          <ProfileField 
-            label="Location" 
+          <ProfileField
+            label="Location"
             name="location"
             value={formData.location}
             editing={editing}
             onChange={handleChange}
           />
-          <ProfileField 
-            label="Birthdate" 
+          <ProfileField
+            label="Birthdate"
             name="birthdate"
             value={formData.birthdate}
             editing={editing}
@@ -143,15 +157,15 @@ const UserProfile = () => {
               />
             ) : (
               <p className="profile-bio">
-                {formData.description || 'No description provided yet.'}
+                {formData.description || "No description provided yet."}
               </p>
             )}
           </div>
         </ProfileSection>
 
         <ProfileSection title="Social Links" icon="🔗">
-          <ProfileField 
-            label="LinkedIn" 
+          <ProfileField
+            label="LinkedIn"
             name="linkedin"
             value={formData.linkedin}
             editing={editing}
@@ -159,8 +173,8 @@ const UserProfile = () => {
             type="url"
             linkable
           />
-          <ProfileField 
-            label="GitHub" 
+          <ProfileField
+            label="GitHub"
             name="github"
             value={formData.github}
             editing={editing}
@@ -174,21 +188,18 @@ const UserProfile = () => {
       <div className="profile-actions">
         {editing ? (
           <div className="action-buttons">
-            <button 
+            <button
               className="button cancel-button"
               onClick={() => setEditing(false)}
             >
               Cancel
             </button>
-            <button 
-              className="button save-button"
-              onClick={handleSave}
-            >
+            <button className="button save-button" onClick={handleSave}>
               Save Changes
             </button>
           </div>
         ) : (
-          <button 
+          <button
             className="button edit-button"
             onClick={() => setEditing(true)}
           >
@@ -200,23 +211,21 @@ const UserProfile = () => {
   );
 };
 
-const ProfileSection = ({ 
-  title, 
+const ProfileSection = ({
+  title,
   icon,
-  children 
-}: { 
-  title: string; 
+  children,
+}: {
+  title: string;
   icon?: string;
-  children: React.ReactNode 
+  children: React.ReactNode;
 }) => (
   <div className="profile-section">
     <div className="section-header">
       {icon && <span className="section-icon">{icon}</span>}
       <h3 className="section-title">{title}</h3>
     </div>
-    <div className="section-content">
-      {children}
-    </div>
+    <div className="section-content">{children}</div>
   </div>
 );
 
@@ -226,8 +235,8 @@ const ProfileField = ({
   value,
   editing,
   onChange,
-  type = 'text',
-  linkable = false
+  type = "text",
+  linkable = false,
 }: {
   label: string;
   name: string;
@@ -251,15 +260,17 @@ const ProfileField = ({
     ) : (
       <div className="field-value">
         {linkable && value ? (
-          <a 
-            href={value} 
-            target="_blank" 
-            rel="noopener noreferrer" 
+          <a
+            href={value}
+            target="_blank"
+            rel="noopener noreferrer"
             className="social-link"
           >
             {value}
           </a>
-        ) : value || <span className="empty-value">Not specified</span>}
+        ) : (
+          value || <span className="empty-value">Not specified</span>
+        )}
       </div>
     )}
   </div>

@@ -49,7 +49,7 @@
 
 /* Barre d'en-tête - Style néomorphique */
 .header {
-  background: rgba(255, 255, 255, 0.7);
+background: radial-gradient(circle, #6b11cb3d, #2574fc14);
   color: var(--text-dark);
   display: flex;
   justify-content: space-between;
@@ -95,11 +95,23 @@
 .userInfo {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 0.95rem;
+  justify-content: center;
+  padding: 8px 16px;
+  background: linear-gradient(to right, #6a11cb, #2575fc);
+  color: #fff;
   font-weight: 600;
-  color: var(--text-dark);
+  font-size: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
+
+.userInfo:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+
 
 .userAvatar {
   width: 36px;
@@ -465,3 +477,4 @@
     max-width: 85%;
   }
 }
+

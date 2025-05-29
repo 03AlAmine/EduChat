@@ -14,6 +14,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import CreateGroupPage from "./pages/groupe/CreateGroup"; // Importer la page de création de groupe
 import UserAdminControl from "./pages/user/UserAdminControl";
 import Profile from "./pages/user/UserProfile";
+import Notif from "./components/Notifications";
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
 
           {/* Page de connexion */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/notif" element={<Notif />} />
 
           <Route
             path="/profile"
@@ -65,7 +67,7 @@ function App() {
           />
 
           <Route
-            path="/group/:groupId"
+            path="/group/:groupSlug"
             element={
               <PrivateRoute>
                 <GroupChatPage />

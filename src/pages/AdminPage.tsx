@@ -19,6 +19,8 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
+  ListItemAvatar,
+  Avatar,
 } from "@mui/material";
 import {
   collection,
@@ -49,6 +51,7 @@ import {
   MoodBad as NegativeIcon,
   SentimentNeutral as NeutralIcon,
   Warning as WarningIcon,
+  NotificationsOff as NotificationsOffIcon,
 } from "@mui/icons-material";
 import "./user/UserAdmin.css";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -61,8 +64,8 @@ interface Group {
   description: string;
   createdAt: Date;
   members: string[];
-  messagesTotal?: number; // Nouveau champ
-  membresTotal?: number; // Nouveau champ
+  messagesTotal?: number;
+  membresTotal?: number;
 }
 
 interface Message {
@@ -75,10 +78,34 @@ interface Message {
   sentiment?: string;
 }
 
+interface Notification {
+  id: string;
+  userId: string;
+  content: string;
+  type: string;
+  createdAt: Date;
+  read: boolean;
+  senderUsername?: string;
+  groupName?: string;
+  originalMessage?: string;
+}
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD") // enlève les accents
+    .replace(/[\u0300-\u036f]/g, "") // supprime les diacritiques
+    .replace(/[^a-z0-9]+/g, "-") // remplace les caractères spéciaux
+    .replace(/(^-|-$)+/g, ""); // supprime les tirets de début/fin
+}
+
 interface GroupMessagesProps {
   groupId: string;
   onClose: () => void;
-  onDeleteMessage: (messageId: string) => void;
+  onDeleteMessage: (
+    messageId: string,
+    messageData: Message,
+    notificationText: string
+  ) => void;
   filter?: "all" | "positive" | "negative";
 }
 
@@ -90,6 +117,80 @@ interface SentimentStats {
   négatif: number;
   neutre: number;
 }
+
+interface DeleteConfirmationDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: (notificationText: string) => void; // Modifié pour accepter le texte
+  messageData: Message | null;
+  groupName: string;
+}
+
+const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
+  open,
+  onClose,
+  onConfirm,
+  messageData,
+  groupName,
+}) => {
+  const [notificationText, setNotificationText] = useState("");
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Confirmer la suppression</DialogTitle>
+      <DialogContent>
+        {messageData && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Êtes-vous sûr de vouloir supprimer ce message ?
+            </Typography>
+
+            <Box
+              sx={{ mb: 3, p: 2, backgroundColor: "#f5f5f5", borderRadius: 1 }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                <strong>Expéditeur:</strong> {messageData.senderUsername}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Groupe:</strong> {groupName}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Date:</strong> {messageData.createdAt.toLocaleString()}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                <strong>Message:</strong> {messageData.text}
+              </Typography>
+            </Box>
+
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Message de notification (optionnel)"
+              value={notificationText}
+              onChange={(e) => setNotificationText(e.target.value)}
+              placeholder="Expliquez pourquoi ce message a été supprimé..."
+              variant="outlined"
+            />
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Annuler</Button>
+        <Button
+          onClick={() => {
+            onConfirm(notificationText); // Passez le texte ici
+            onClose();
+          }}
+          color="error"
+          variant="contained"
+        >
+          Confirmer la suppression
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 class FrenchSentimentAnalyzer {
   private lexicon: { [key: string]: number };
@@ -208,11 +309,20 @@ const GroupMessages: React.FC<GroupMessagesProps> = ({
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [groupName, setGroupName] = useState("");
   const analyzer = React.useMemo(() => new FrenchSentimentAnalyzer(), []);
 
   useEffect(() => {
     const fetchMessages = async () => {
       try {
+        // Fetch group name first
+        const groupDoc = await getDoc(doc(db, "groups", groupId));
+        if (groupDoc.exists()) {
+          setGroupName(groupDoc.data().name);
+        }
+
         const messagesQuery = query(
           collection(db, "groups", groupId, "messages"),
           orderBy("createdAt", "desc")
@@ -236,11 +346,9 @@ const GroupMessages: React.FC<GroupMessagesProps> = ({
     fetchMessages();
   }, [analyzer, groupId]);
 
-  // CORRECTION DU FILTRAGE
   const filteredMessages = messages.filter((msg) => {
     if (filter === "all") return true;
 
-    // Mapper les filtres anglais vers les sentiments français
     const sentimentMap = {
       positive: "positif",
       negative: "négatif",
@@ -272,77 +380,101 @@ const GroupMessages: React.FC<GroupMessagesProps> = ({
     }
   };
 
+  const handleDeleteClick = (message: Message) => {
+    setSelectedMessage(message);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = (notificationText: string) => {
+    if (selectedMessage) {
+      onDeleteMessage(selectedMessage.id, selectedMessage, notificationText);
+      setDeleteDialogOpen(false);
+    }
+  };
+
   return (
-    <Dialog open={true} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        Messages du groupe{" "}
-        {filter !== "all" &&
-          `(${filter === "positive" ? "Positifs" : "Négatifs"})`}
-      </DialogTitle>
-      <DialogContent>
-        {loading ? (
-          <Box display="flex" justifyContent="center" p={3}>
-            <CircularProgress />
-          </Box>
-        ) : filteredMessages.length === 0 ? (
-          <Typography variant="body1" p={2}>
-            Aucun s message{" "}
-            {filter !== "all"
-              ? filter === "positive"
-                ? "positif"
-                : "négatif"
-              : ""}{" "}
-            dans ce groupe
-          </Typography>
-        ) : (
-          <List sx={{ maxHeight: "60vh", overflow: "auto" }}>
-            {filteredMessages.map((message) => (
-              <Paper key={message.id} sx={{ p: 2, mb: 2 }}>
-                <Box display="flex" justifyContent="space-between">
-                  <Typography fontWeight="bold">
-                    {message.senderUsername}
-                  </Typography>
-                  <Box display="flex" alignItems="center">
-                    <Chip
-                      icon={getSentimentIcon(message.sentiment || "neutre")}
-                      label={message.sentiment}
-                      size="small"
-                      sx={{
-                        mr: 1,
-                        color: getSentimentColor(message.sentiment || "neutre"),
-                        borderColor: getSentimentColor(
-                          message.sentiment || "neutre"
-                        ),
-                      }}
-                      variant="outlined"
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={() => onDeleteMessage(message.id)}
-                      color="error"
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+    <>
+      <Dialog open={true} onClose={onClose} maxWidth="md" fullWidth>
+        <DialogTitle>
+          Messages du groupe{" "}
+          {filter !== "all" &&
+            `(${filter === "positive" ? "Positifs" : "Négatifs"})`}
+        </DialogTitle>
+        <DialogContent>
+          {loading ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <CircularProgress />
+            </Box>
+          ) : filteredMessages.length === 0 ? (
+            <Typography variant="body1" p={2}>
+              Aucun message{" "}
+              {filter !== "all"
+                ? filter === "positive"
+                  ? "positif"
+                  : "négatif"
+                : ""}{" "}
+              dans ce groupe
+            </Typography>
+          ) : (
+            <List sx={{ maxHeight: "60vh", overflow: "auto" }}>
+              {filteredMessages.map((message) => (
+                <Paper key={message.id} sx={{ p: 2, mb: 2 }}>
+                  <Box display="flex" justifyContent="space-between">
+                    <Typography fontWeight="bold">
+                      {message.senderUsername}
+                    </Typography>
+                    <Box display="flex" alignItems="center">
+                      <Chip
+                        icon={getSentimentIcon(message.sentiment || "neutre")}
+                        label={message.sentiment}
+                        size="small"
+                        sx={{
+                          mr: 1,
+                          color: getSentimentColor(
+                            message.sentiment || "neutre"
+                          ),
+                          borderColor: getSentimentColor(
+                            message.sentiment || "neutre"
+                          ),
+                        }}
+                        variant="outlined"
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteClick(message)}
+                        color="error"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
                   </Box>
-                </Box>
-                <Typography sx={{ mt: 1 }}>{message.text}</Typography>
-                <Typography
-                  variant="caption"
-                  color="textSecondary"
-                  display="block"
-                  sx={{ mt: 1 }}
-                >
-                  {message.createdAt.toLocaleString()}
-                </Typography>
-              </Paper>
-            ))}
-          </List>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Fermer</Button>
-      </DialogActions>
-    </Dialog>
+                  <Typography sx={{ mt: 1 }}>{message.text}</Typography>
+                  <Typography
+                    variant="caption"
+                    color="textSecondary"
+                    display="block"
+                    sx={{ mt: 1 }}
+                  >
+                    {message.createdAt.toLocaleString()}
+                  </Typography>
+                </Paper>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
+
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
+        messageData={selectedMessage}
+        groupName={groupName}
+      />
+    </>
   );
 };
 
@@ -354,6 +486,7 @@ const AdminPage: React.FC = () => {
   const [recentMessages, setRecentMessages] = useState<Message[]>([]);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<
     "all" | "positive" | "negative"
@@ -368,15 +501,35 @@ const AdminPage: React.FC = () => {
     negativeMessages: 0,
     neutralMessages: 0,
   });
-  // Move fetching users count inside fetchData
   const [activeTab, setActiveTab] = useState("dashboard");
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success" as SnackbarSeverity,
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const analyzer = new FrenchSentimentAnalyzer();
+
+  const fetchNotifications = async () => {
+    try {
+      const q = query(
+        collection(db, "notifications"),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+      })) as Notification[];
+      setNotifications(data);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -385,6 +538,31 @@ const AdminPage: React.FC = () => {
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
       showSnackbar("Erreur lors de la déconnexion", "error");
+    }
+  };
+
+  const sendNotification = async (
+    userId: string,
+    message: string,
+    type: string,
+    senderUsername?: string,
+    groupName?: string,
+    originalMessage?: string
+  ) => {
+    try {
+      await addDoc(collection(db, "notifications"), {
+        userId,
+        content: message,
+        type,
+        createdAt: new Date(),
+        read: false,
+        senderUsername,
+        groupName,
+        originalMessage,
+      });
+      await fetchNotifications();
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de la notification:", error);
     }
   };
 
@@ -425,7 +603,6 @@ const AdminPage: React.FC = () => {
         // Fetch all messages for statistics
         const allMessages: Message[] = [];
 
-        // Parcourir tous les groupes pour compter les messages
         for (const group of groupsData) {
           const messagesQuery = query(
             collection(db, "groups", group.id, "messages")
@@ -434,7 +611,6 @@ const AdminPage: React.FC = () => {
 
           messagesCount += messagesSnapshot.size;
 
-          // Use local counters to avoid unsafe references in async loop
           let localTodayMessagesCount = 0;
           let localPositiveCount = 0;
           let localNegativeCount = 0;
@@ -448,16 +624,13 @@ const AdminPage: React.FC = () => {
               createdAt: doc.data().createdAt?.toDate() || new Date(),
             } as Message;
 
-            // Vérifier si le message est d'aujourd'hui
             if (message.createdAt >= today) {
               localTodayMessagesCount++;
             }
 
-            // Analyse du sentiment
             const sentiment = analyzer.analyze(message.text);
             message.sentiment = sentiment;
 
-            // Compter les sentiments
             switch (sentiment) {
               case "positif":
                 localPositiveCount++;
@@ -478,18 +651,17 @@ const AdminPage: React.FC = () => {
           neutralCount += localNeutralCount;
         }
 
-        // Set statistics and recent messages
         setStats({
           totalGroups: groupsData.length,
-          totalUsers: totalUsersCount, // Now fetched properly
-          activeUsers: 0, // You may want to fetch and set this properly
+          totalUsers: totalUsersCount,
+          activeUsers: 0,
           messagesToday: todayMessagesCount,
           totalMessages: messagesCount,
           positiveMessages: positiveCount,
           negativeMessages: negativeCount,
           neutralMessages: neutralCount,
         });
-        // Sort allMessages by createdAt descending for recent activity
+
         setRecentMessages(
           allMessages.sort(
             (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
@@ -501,9 +673,11 @@ const AdminPage: React.FC = () => {
       }
     };
     fetchData();
-  }, [analyzer]); // <-- This closes the useEffect properly
+  }, [analyzer]);
 
   const handleAddGroup = async () => {
+    const slug = generateSlug(groupName);
+
     if (groupName.trim()) {
       try {
         const newGroup = {
@@ -511,8 +685,10 @@ const AdminPage: React.FC = () => {
           description: groupDescription || "Nouveau groupe",
           createdAt: new Date(),
           members: [],
-          messagesTotal: 0, // Initialisé à 0
-          membresTotal: 0, // Initialisé à 0
+          slug: slug,
+
+          messagesTotal: 0,
+          membresTotal: 0,
         };
 
         await addDoc(collection(db, "groups"), newGroup);
@@ -564,15 +740,50 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const handleDeleteMessage = async (messageId: string) => {
+  const handleDeleteMessage = async (
+    messageId: string,
+    messageData: Message,
+    notificationText = "" // Ajoutez ce paramètre avec une valeur par défaut
+  ) => {
     if (!selectedGroupId) return;
 
     try {
+      // Get group name for notification
+      const groupDoc = await getDoc(doc(db, "groups", selectedGroupId));
+      const groupName = groupDoc.exists()
+        ? groupDoc.data().name
+        : "Groupe inconnu";
+
+      // Delete the message
       await deleteDoc(
         doc(db, "groups", selectedGroupId, "messages", messageId)
       );
+
+      // Send notification to the user
+      let notificationMessage = `Votre message dans le groupe "${groupName}" a été supprimé par un administrateur.`;
+
+      if (notificationText) {
+        notificationMessage += ` Raison : ${notificationText}`;
+      }
+
+      notificationMessage += ` Message original: "${messageData.text.substring(
+        0,
+        50
+      )}${messageData.text.length > 50 ? "..." : ""}"`;
+
+      await sendNotification(
+        messageData.senderId,
+        notificationMessage,
+        "message_deleted",
+        messageData.senderUsername,
+        groupName,
+        messageData.text
+      );
+
+      // Update local state
       setRecentMessages(recentMessages.filter((msg) => msg.id !== messageId));
-      showSnackbar("Message supprimé avec succès", "success");
+
+      showSnackbar("Message supprimé et utilisateur notifié", "success");
     } catch (error) {
       console.error("Error deleting message:", error);
       showSnackbar("Erreur lors de la suppression du message", "error");
@@ -589,18 +800,15 @@ const AdminPage: React.FC = () => {
 
   const updateGroupTotals = async (groupId: string) => {
     try {
-      // Compter les messages
       const messagesQuery = query(
         collection(db, "groups", groupId, "messages")
       );
       const messagesSnapshot = await getDocs(messagesQuery);
       const messagesCount = messagesSnapshot.size;
 
-      // Compter les membres (on utilise la longueur du tableau members)
       const groupDoc = await getDoc(doc(db, "groups", groupId));
       const membersCount = groupDoc.data()?.members?.length || 0;
 
-      // Mettre à jour les totaux
       await updateDoc(doc(db, "groups", groupId), {
         messagesTotal: messagesCount,
         membresTotal: membersCount,
@@ -609,6 +817,7 @@ const AdminPage: React.FC = () => {
       console.error("Erreur lors de la mise à jour des totaux:", error);
     }
   };
+
   const updateGroupMembers = async (
     groupId: string,
     userId: string,
@@ -632,7 +841,7 @@ const AdminPage: React.FC = () => {
 
       await updateDoc(groupRef, {
         members: updatedMembers,
-        membresTotal: updatedMembers.length, // Mise à jour directe
+        membresTotal: updatedMembers.length,
       });
 
       showSnackbar(`Membres mis à jour avec succès`, "success");
@@ -641,9 +850,9 @@ const AdminPage: React.FC = () => {
       showSnackbar("Erreur lors de la mise à jour des membres", "error");
     }
   };
+
   const handleSendMessage = async (groupId: string, messageText: string) => {
     try {
-      // Ajouter le message
       await addDoc(collection(db, "groups", groupId, "messages"), {
         text: messageText,
         senderId: auth.currentUser?.uid,
@@ -652,15 +861,15 @@ const AdminPage: React.FC = () => {
         sentiment: analyzer.analyze(messageText),
       });
 
-      // Mettre à jour le compteur de messages
       const groupRef = doc(db, "groups", groupId);
       await updateDoc(groupRef, {
-        messagesTotal: increment(1), // Utilisation de increment pour Firestore
+        messagesTotal: increment(1),
       });
     } catch (error) {
       console.error("Erreur lors de l'envoi du message:", error);
     }
   };
+
   const getSentimentStats = (messages: Message[]): SentimentStats => {
     const stats: SentimentStats = {
       positif: 0,
@@ -744,6 +953,7 @@ const AdminPage: React.FC = () => {
           <Tab label="Tableau de bord" value="dashboard" />
           <Tab label="Analyse des sentiments" value="sentiment" />
           <Tab label="Gestion des groupes" value="groups" />
+          <Tab label="Notifications" value="notifications" />
         </Tabs>
       </Box>
 
@@ -1508,6 +1718,117 @@ const AdminPage: React.FC = () => {
               </Typography>
             </Box>
           )}
+        </Paper>
+      )}
+
+      {activeTab === "notifications" && (
+        <Paper className="notification-card">
+          <div className="notification-header">
+            <WarningIcon color="primary" className="notification-icon" />
+            <Typography
+              variant="h5"
+              component="h2"
+              className="notification-title"
+            >
+              Historique des notifications
+              <Chip
+                label={`${notifications.length} ${
+                  notifications.length === 1 ? "notification" : "notifications"
+                }`}
+                size="small"
+                className="notification-count"
+                variant="outlined"
+              />
+            </Typography>
+          </div>
+
+          <List className="notification-list">
+            {notifications.length > 0 ? (
+              notifications.map((notification) => (
+                <ListItem
+                  key={notification.id}
+                  className={`notification-item ${
+                    notification.read ? "" : "unread"
+                  }`}
+                >
+                  <div className="notification-badge"></div>
+
+                  <ListItemAvatar>
+                    <Avatar className="notification-avatar">
+                      {notification.senderUsername?.charAt(0).toUpperCase() ||
+                        "?"}
+                    </Avatar>
+                  </ListItemAvatar>
+
+                  <ListItemText
+                    primary={
+                      <div className="notification-content-wrapper">
+                        <div className="notification-meta">
+                          <span className="sender">
+                            {notification.senderUsername ||
+                              "Utilisateur inconnu"}
+                          </span>
+                          <span className="separator">•</span>
+                          <span className="group">
+                            {notification.groupName || "Groupe inconnu"}
+                          </span>
+                          <span className="separator">•</span>
+                          <span className="type">{notification.type}</span>
+                        </div>
+
+                        <Typography
+                          variant="body1"
+                          className="notification-content"
+                        >
+                          {notification.content}
+                        </Typography>
+
+                        {notification.originalMessage && (
+                          <Paper
+                            elevation={0}
+                            className="original-message-card"
+                          >
+                            <Typography
+                              variant="caption"
+                              className="original-message-label"
+                            >
+                              Message original
+                            </Typography>
+                            <Typography className="original-message">
+                              {notification.originalMessage}
+                            </Typography>
+                          </Paper>
+                        )}
+                      </div>
+                    }
+                    secondary={
+                      <Typography
+                        variant="caption"
+                        className="notification-time"
+                      >
+                        {notification.createdAt.toLocaleString()}
+                        <span
+                          className={`read-status ${
+                            notification.read ? "read" : "unread"
+                          }`}
+                        >
+                          {notification.read ? "Lu" : "Non lu"}
+                        </span>
+                      </Typography>
+                    }
+                    disableTypography
+                  />
+                </ListItem>
+              ))
+            ) : (
+              <div className="empty-notifications">
+                <NotificationsOffIcon className="empty-icon" />
+                <Typography variant="body1" className="empty-text">
+                  Aucune notification à afficher
+                </Typography>
+              </div>
+            )}
+          </List>
         </Paper>
       )}
 

@@ -111,3 +111,194 @@
 .group-actions:hover {
   opacity: 1 !important;
 }
+.notification-card {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin: 16px;
+  max-width: 800px;
+  width: 100%;
+  
+  .notification-header {
+    display: flex;
+    align-items: center;
+    padding: 20px 24px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    
+    .notification-icon {
+      margin-right: 12px;
+      font-size: 28px;
+    }
+    
+    .notification-title {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      color: #2c3e50;
+      
+      .notification-count {
+        margin-left: 12px;
+        font-weight: 500;
+        border-color: #e0e0e0;
+        background-color: #ffffff;
+      }
+    }
+  }
+  
+  .notification-list {
+    padding: 0;
+    
+    .notification-item {
+      padding: 16px 24px;
+      transition: all 0.3s ease;
+      border-bottom: 1px solid #f0f0f0;
+      position: relative;
+      
+      &:hover {
+        background-color: #f8f9fa;
+      }
+      
+      &.unread {
+        background-color: rgba(25, 118, 210, 0.04);
+        
+        .notification-badge {
+          position: absolute;
+          left: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 8px;
+          height: 8px;
+          background-color: #1976d2;
+          border-radius: 50%;
+        }
+      }
+      
+      .notification-avatar {
+        background-color: #1976d2;
+        color: white;
+        font-weight: 500;
+      }
+      
+      .notification-content-wrapper {
+        .notification-meta {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          margin-bottom: 6px;
+          color: #555;
+          font-size: 0.85rem;
+          
+          .sender {
+            font-weight: 500;
+            color: #2c3e50;
+          }
+          
+          .separator {
+            margin: 0 8px;
+            color: #bdbdbd;
+          }
+          
+          .group {
+            font-style: italic;
+          }
+          
+          .type {
+            text-transform: capitalize;
+            padding: 2px 6px;
+            background-color: #e3f2fd;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: #1976d2;
+          }
+        }
+        
+        .notification-content {
+          color: #333;
+          line-height: 1.5;
+          margin-bottom: 8px;
+        }
+        
+        .original-message-card {
+          margin-top: 8px;
+          padding: 10px 12px;
+          background-color: #f5f5f5;
+          border-left: 3px solid #bdbdbd;
+          border-radius: 0 4px 4px 0;
+          
+          .original-message-label {
+            display: block;
+            color: #757575;
+            font-weight: 500;
+            margin-bottom: 4px;
+          }
+          
+          .original-message {
+            color: #424242;
+            font-style: italic;
+            line-height: 1.4;
+          }
+        }
+      }
+      
+      .notification-time {
+        display: flex;
+        align-items: center;
+        color: #757575 !important;
+        
+        .read-status {
+          margin-left: 12px;
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-size: 0.7rem;
+          text-transform: uppercase;
+          font-weight: 500;
+          
+          &.read {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+          }
+          
+          &.unread {
+            background-color: #fff8e1;
+            color: #ff8f00;
+          }
+        }
+      }
+    }
+    
+    .empty-notifications {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      text-align: center;
+      
+      .empty-icon {
+        font-size: 48px;
+        color: #bdbdbd;
+        margin-bottom: 16px;
+      }
+      
+      .empty-text {
+        color: #757575;
+        max-width: 300px;
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+
+.notification-item.unread {
+  animation: pulse 5s infinite;
+  
+  &:hover {
+    animation: none;
+  }
+}

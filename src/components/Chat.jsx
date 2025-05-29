@@ -15,11 +15,13 @@ import {
 
 } from 'firebase/firestore';
 import styles from './Chat.module.css';
-import { Avatar, Button, TextField, IconButton, CircularProgress } from '@mui/material';
+import { Avatar, Button, TextField, IconButton, CircularProgress, Badge } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import * as vader from 'vader-sentiment';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+
 
 class FrenchSentimentAnalyzer {
   constructor() {
@@ -115,7 +117,9 @@ const Chat = ({ groupId }) => {
   const navigate = useNavigate();
   const [group, setGroup] = useState(null);
   const analyzer = useRef(new FrenchSentimentAnalyzer()).current;
-
+  const handleViewNotifications = () => {
+    navigate('/notif');
+  };
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if (user) {
@@ -320,14 +324,43 @@ const Chat = ({ groupId }) => {
         <div className={styles.userInfo}>
           <span>{currentUserData?.username || 'Utilisateur'}</span>
         </div>
-        <Button
-          variant="outlined"
-          color="secondary"
-          onClick={handleLeaveGroup}
+        <IconButton
+          onClick={handleViewNotifications}
+          aria-label="Voir les notifications"
+          sx={{
+            background: "linear-gradient(to left, #667eea, #764ba2)", // ✅ chaîne de caractères
+            borderRadius: "12px",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+            transition: "all 0.3s ease",
+            '&:hover': {
+              background: "linear-gradient(to right, #5a67d8, #6b46c1)", // assombri légèrement
+              transform: "scale(1.05)",
+            },
+            '&:active': {
+              transform: "scale(0.95)",
+            },
+            padding: "8px",
+          }}
         >
-          Quitter le groupe
-        </Button>
+          <Badge
+            badgeContent={currentUserData?.unreadNotifications || 0}
+            color="error"
+            sx={{
+              '& .MuiBadge-badge': {
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                minWidth: '20px',
+                height: '20px',
+                padding: '0 6px',
+                transition: "all 0.3s ease",
+              },
+            }}
+          >
+            <NotificationsIcon sx={{ color: "#fff", '&:hover': { color: "#fad0c4", transform: "scale(1.2)" } }} />
+          </Badge>
+        </IconButton>
       </div>
+
 
       <div className={styles.messagesList} ref={messagesContainerRef}>
         {Object.keys(groupedMessages).map(dateKey => {

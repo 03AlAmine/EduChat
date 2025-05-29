@@ -17,6 +17,7 @@ import {
   doc,
   writeBatch,
   increment,
+  getDoc,
 } from "firebase/firestore";
 import { db, auth } from "../services/firebase";
 import { useNavigate } from "react-router-dom";
@@ -31,11 +32,12 @@ import "./pages.styles.css";
 interface Group {
   id: string;
   name: string;
+  slug: string; // Ajoutez cette ligne
   description?: string;
   createdAt?: Date;
-  members?: string[]; // Liste des IDs des membres
-  messagesTotal?: number; // Nouveau champ pour le total des messages
-  membresTotal?: number;  // Nouveau champ pour le total des membres
+  members?: string[];
+  messagesTotal?: number;
+  membresTotal?: number;
 }
 
 const UserPage: React.FC = () => {
@@ -60,26 +62,27 @@ const UserPage: React.FC = () => {
     return () => unsubscribeAuth();
   }, []);
 
-  const fetchGroups = async () => {
-    setLoading(true);
-    try {
-      const groupsSnapshot = await getDocs(collection(db, "groups"));
-const groupsData = groupsSnapshot.docs.map((doc) => ({
-  id: doc.id,
-  name: doc.data().name,
-  description: doc.data().description,
-  createdAt: doc.data().createdAt?.toDate(),
-  members: doc.data().members || [],
-  messagesTotal: doc.data().messagesTotal || 0, // Valeur par défaut 0
-  membresTotal: doc.data().membresTotal || 0    // Valeur par défaut 0
-}));
-      setChatGroups(groupsData);
-    } catch (error) {
-      console.error("Error fetching groups:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchGroups = async () => {
+  setLoading(true);
+  try {
+    const groupsSnapshot = await getDocs(collection(db, "groups"));
+    const groupsData = groupsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      name: doc.data().name,
+      slug: doc.data().slug, // Récupérez le slug depuis Firestore
+      description: doc.data().description,
+      createdAt: doc.data().createdAt?.toDate(),
+      members: doc.data().members || [],
+      messagesTotal: doc.data().messagesTotal || 0,
+      membresTotal: doc.data().membresTotal || 0,
+    }));
+    setChatGroups(groupsData);
+  } catch (error) {
+    console.error("Error fetching groups:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const setupUserGroupsListener = (userId: string) => {
     const q = query(
@@ -95,8 +98,8 @@ const groupsData = groupsSnapshot.docs.map((doc) => ({
     return unsubscribe;
   };
 
-// Modifiez les fonctions handleJoinGroup et handleLeaveGroup
-const handleJoinGroup = async (groupId: string) => {
+  // Modifiez les fonctions handleJoinGroup et handleLeaveGroup
+ const handleJoinGroup = async (groupId: string) => {
   const user = auth.currentUser;
   if (!user) {
     alert("Veuillez vous connecter pour rejoindre un groupe");
@@ -105,10 +108,12 @@ const handleJoinGroup = async (groupId: string) => {
   }
 
   try {
-    // Utilisez une transaction batch
+    // Trouver le groupe correspondant pour obtenir son slug
+    const group = chatGroups.find(g => g.id === groupId);
+    if (!group) throw new Error("Groupe introuvable");
+
     const batch = writeBatch(db);
-    
-    // Ajouter à userGroups
+
     const userGroupRef = doc(collection(db, "userGroups"));
     batch.set(userGroupRef, {
       userId: user.uid,
@@ -116,14 +121,13 @@ const handleJoinGroup = async (groupId: string) => {
       joinedAt: new Date(),
     });
 
-    // Mettre à jour le compteur de membres
     const groupRef = doc(db, "groups", groupId);
     batch.update(groupRef, {
-      membresTotal: increment(1)
+      membresTotal: increment(1),
     });
 
     await batch.commit();
-    navigate(`/group/${groupId}`);
+    navigate(`/group/${group.slug}`); // Utilisez le slug ici
   } catch (error) {
     console.error("Erreur lors de l'adhésion:", error);
     alert("Une erreur est survenue");
@@ -141,20 +145,26 @@ const handleLeaveGroup = async (groupId: string) => {
   );
 
   try {
+    // Vérifier d'abord le nombre actuel de membres
+    const groupDoc = await getDoc(doc(db, "groups", groupId));
+    const currentMemberCount = groupDoc.data()?.membresTotal || 0;
+
     // Utilisez une transaction batch
     const batch = writeBatch(db);
-    
+
     // Supprimer de userGroups
     const querySnapshot = await getDocs(q);
-    querySnapshot.docs.forEach(docSnap => {
+    querySnapshot.docs.forEach((docSnap) => {
       batch.delete(doc(db, "userGroups", docSnap.id));
     });
 
-    // Mettre à jour le compteur de membres
-    const groupRef = doc(db, "groups", groupId);
-    batch.update(groupRef, {
-      membresTotal: increment(-1)
-    });
+    // Mettre à jour le compteur de membres seulement si > 0
+    if (currentMemberCount > 0) {
+      const groupRef = doc(db, "groups", groupId);
+      batch.update(groupRef, {
+        membresTotal: increment(-1),
+      });
+    }
 
     await batch.commit();
   } catch (error) {
@@ -202,44 +212,45 @@ const handleLeaveGroup = async (groupId: string) => {
                     <Box className="group-info">
                       <Typography className="group-name">
                         {group.name}
-<Typography component="span" variant="caption" ml={1}>
-  ({group.membresTotal || 0} membres, {group.messagesTotal || 0} messages)
-</Typography>
+                        <Typography component="span" variant="caption" ml={1}>
+                          ({group.membresTotal || 0} membres,{" "}
+                          {group.messagesTotal || 0} messages)
+                        </Typography>
                       </Typography>
                       <Typography className="group-description">
                         {group.description || "Aucune description disponible"}
                       </Typography>
                     </Box>
                     <Box className="group-actions">
-                      {isJoined ? (
-                        <>
-                          <Button
-                            variant="contained"
-                            onClick={() => navigate(`/group/${group.id}`)}
-                            className="user-btn primary-btn"
-                            startIcon={<ChatIcon />}
-                          >
-                            Ouvrir
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            onClick={() => handleLeaveGroup(group.id)}
-                            className="user-btn danger-btn"
-                            startIcon={<LeaveIcon />}
-                          >
-                            Quitter
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          variant="contained"
-                          onClick={() => handleJoinGroup(group.id)}
-                          className="user-btn primary-btn"
-                          startIcon={<JoinIcon />}
-                        >
-                          Rejoindre
-                        </Button>
-                      )}
+{isJoined ? (
+  <>
+    <Button
+      variant="contained"
+      onClick={() => navigate(`/group/${group.slug}`)} // Utilisez group.slug ici
+      className="user-btn primary-btn"
+      startIcon={<ChatIcon />}
+    >
+      Ouvrir
+    </Button>
+    <Button
+      variant="outlined"
+      onClick={() => handleLeaveGroup(group.id)}
+      className="user-btn danger-btn"
+      startIcon={<LeaveIcon />}
+    >
+      Quitter
+    </Button>
+  </>
+) : (
+  <Button
+    variant="contained"
+    onClick={() => handleJoinGroup(group.id)}
+    className="user-btn primary-btn"
+    startIcon={<JoinIcon />}
+  >
+    Rejoindre
+  </Button>
+)}
                     </Box>
                   </Box>
                   <Divider sx={{ my: 1 }} />

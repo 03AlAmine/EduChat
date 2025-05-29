@@ -18,6 +18,7 @@ interface UserData {
   birthdate?: string;
   linkedin?: string;
   github?: string;
+  username?: string;        // 🔧 Ajoute ceci pour le nom d'utilisateur
 }
 
 
