@@ -5,6 +5,7 @@ import { auth, db } from '../services/firebase';
 import { TextField, Button, Container, Typography, Link } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import '../App.css'; // CSS global contenant les styles
+import logo from './logo.png'; // Assurez-vous que le chemin est correct
 
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -122,6 +123,7 @@ navigate('/login', { state: { fromRegister: true } });
           </Typography>
         </div>
       </div>
+<img src={logo} alt="Logo EduChat" className="register-logo" />
 
       <div className="register-welcome">
         <div className="welcome-text">

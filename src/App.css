@@ -1,7 +1,6 @@
-
-
 .App {
   text-align: center;
+  font-family: "Poppins", sans-serif;
 }
 
 .App-logo {
@@ -27,7 +26,7 @@
 }
 
 .App-link {
-  color: #61dafb;
+  color: #6161fb;
 }
 
 @keyframes App-logo-spin {
@@ -38,20 +37,24 @@
     transform: rotate(360deg);
   }
 }
+.a {
+  text-decoration: none !important;
+}
 .register-container {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-    background: linear-gradient(to right, #067415, #ffffff);
+  background: linear-gradient(to right, #b500de, #6400f3);
 
-  gap: 3rem;
+  gap: 4.5rem;
   max-width: 65%;
   width: 100%;
   flex-wrap: wrap;
   position: relative;
   border-radius: 20px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  font-family: cursive !important;
 }
 
 .register-form {
@@ -91,7 +94,7 @@
 .register-button {
   margin-top: 25px !important;
   padding: 12px !important;
-  background-color: #3f51b5 !important;
+  background: linear-gradient(to left, #b500de, #6500f327);
   color: white !important;
   font-weight: bold !important;
   transition: background-color 0.3s ease;
@@ -115,7 +118,7 @@
 
 .register-link {
   color: #3f51b5;
-  text-decoration: none;
+  text-decoration: none !important;
   font-weight: 500;
   transition: color 0.2s ease;
 }
@@ -125,11 +128,14 @@
   text-decoration: underline;
 }
 
+link {
+  text-decoration: none !important;
+}
 /* Bloc de bienvenue */
 .register-welcome {
   flex: 1;
   max-width: 480px;
-  background: linear-gradient(145deg, #3f51b5, #1a237e);
+  background: linear-gradient(145deg, #3f51b542, #1a227e1f);
   padding: 3rem;
   border-radius: 20px;
   color: white;
@@ -170,16 +176,12 @@
   align-items: center;
 }
 
-
-
-
-
 .login-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-    background: linear-gradient(to left, #067415, #ffffff);
+  background: linear-gradient(to left, #b500de, #6400f3);
 
   gap: 3rem;
   max-width: 65%;
@@ -194,7 +196,7 @@
 .login-left {
   flex: 1;
   max-width: 480px;
-  background: linear-gradient(145deg, #3f51b5, #1a237e);
+  background: linear-gradient(145deg, #3f51b542, #1a227e1f);
   padding: 3rem;
   border-radius: 20px;
   color: white;
@@ -305,9 +307,7 @@
   max-width: 420px;
   border-radius: 16px !important;
   background-color: #ffffff;
-  box-shadow:
-    0 10px 20px rgba(0, 0, 0, 0.1),
-    0 6px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1), 0 6px 6px rgba(0, 0, 0, 0.08);
   transform: translateY(20px);
   animation: stackAppear 0.6s ease-out forwards;
   z-index: 10;
@@ -342,7 +342,7 @@
 .login-button {
   margin-top: 25px !important;
   padding: 12px !important;
-  background-color: #3f51b5 !important;
+  background: linear-gradient(to left, #b500de, #6500f327);
   color: white !important;
   font-weight: bold !important;
   transition: background-color 0.3s ease;
@@ -371,7 +371,6 @@
   text-decoration: underline;
 }
 
-
 .reset-container {
   display: flex;
   justify-content: center;
@@ -385,4 +384,58 @@
   width: 100%;
   max-width: 400px;
   text-align: center;
+}
+.forgot-password-link {
+  text-decoration: none !important;
+}
+.login-logo {
+  max-width: 30%;
+  height: auto;
+  transition: transform 0.3s ease;
+  position: absolute;
+  top: -25%;
+  left: 35%;
+  animation: pulse 2.5s infinite;
+}
+
+.login-logo:hover {
+  transform: scale(1.05);
+}
+.register-logo {
+  position: absolute;
+  top: 42%; /* Ajuste selon la hauteur souhaitée */
+  left: 42%;
+  z-index: 2;
+  max-width: 120px;
+  transition: transform 0.3s ease;
+  animation: bounceUpDown 7s ease-in-out infinite;
+}
+.register-logo:hover {
+  transform: translateX(-50%) scale(1.05);
+}
+
+@keyframes bounceUpDown {
+  0% {
+    transform: translateY(0%) scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-70%) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0%) scale(1);
+    opacity: 0.8;
+  }
+}
+
+@media screen and (min-width: 1700px) {
+  .login-logo {
+    max-width: 30%;
+    height: auto;
+    transition: transform 0.3s ease;
+    position: sticky;
+    top: -25%;
+    left: 35%;
+  }
 }

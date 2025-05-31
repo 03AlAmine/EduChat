@@ -15,11 +15,6 @@
   width: 70%;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
 
 body {
   background: linear-gradient(135deg, #f3f4f6, #e5e7eb);

@@ -14,6 +14,7 @@ import {
   Container,
 } from "@mui/material";
 import "../App.css";
+import logo from "./logo.png";
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -89,6 +90,13 @@ const LoginPage: React.FC = () => {
 
         <div className="login-right">
           <Paper elevation={3} className="login-paper">
+              <Box textAlign="center" mb={2}>
+    <img
+      src={logo} // ou "/logo.png" si vous utilisez le dossier public
+      alt="Logo EduChat"
+      className="login-logo"
+    />
+  </Box>
                     {/* Message succès inscription */}
         {showSuccessMessage && (
           <Alert
